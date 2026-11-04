@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flame/components.dart';
+import 'package:flutter/material.dart' show Colors;
 import '../../core/constants/game_constants.dart';
 import '../../core/math/iso_math.dart';
 import '../../core/theme/game_theme.dart';
@@ -51,7 +52,22 @@ class TileHighlightComponent extends PositionComponent {
       ..lineTo(-GameConstants.halfTileWidth, 0)
       ..close();
 
+    // Soft outer glow halo
+    final glowPaint = Paint()
+      ..color = GameTheme.accentNeon.withValues(alpha: 0.18)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 8.0
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+
+    canvas.drawPath(path, glowPaint);
     canvas.drawPath(path, _fillPaint);
     canvas.drawPath(path, _strokePaint);
+
+    // Inner bright rim
+    final rim = Paint()
+      ..color = Colors.white.withValues(alpha: 0.35 + ((math.sin(_pulseTimer) + 1) / 2) * 0.35)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    canvas.drawPath(path, rim);
   }
 }

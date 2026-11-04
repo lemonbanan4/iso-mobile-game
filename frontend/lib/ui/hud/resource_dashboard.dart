@@ -19,6 +19,18 @@ class ResourceDashboard extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Row(
           children: [
+            ClayButton(
+              padding: const EdgeInsets.all(12),
+              borderRadius: 16,
+              onPressed: () =>
+                  ref.read(gameStateProvider.notifier).openGameMenu(),
+              child: const Icon(
+                Icons.menu_rounded,
+                size: 18,
+                color: GameTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: GlassCard(
                 padding: const EdgeInsets.symmetric(
@@ -52,14 +64,16 @@ class ResourceDashboard extends ConsumerWidget {
                       child: _ResourceItem(
                         icon: Icons.groups_rounded,
                         color: GameTheme.loyalty,
-                        value: '${gameState.loyalty}',
+                        value: '${gameState.loyalty}%',
                         label: 'Loyalty',
                       ),
                     ),
                     _ResourceItem(
                       icon: Icons.local_fire_department_rounded,
-                      color: GameTheme.heat,
-                      value: '${gameState.heat}',
+                      color: gameState.heat >= 80
+                          ? GameTheme.danger
+                          : GameTheme.heat,
+                      value: '${gameState.heat}%',
                       label: 'Heat',
                     ),
                   ],
@@ -69,14 +83,25 @@ class ResourceDashboard extends ConsumerWidget {
             const SizedBox(width: 12),
             ClayButton(
               isAccent: true,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               borderRadius: 22,
-              onPressed: () {
-                ref.read(gameStateProvider.notifier).nextTurn();
-              },
+              onPressed: gameState.isGameOver
+                  ? null
+                  : () {
+                      ref.read(gameStateProvider.notifier).nextTurn();
+                    },
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  Text(
+                    '${gameState.controlledSectors}/${GameState.victorySectorTarget}',
+                    style: const TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF070A12),
+                      letterSpacing: 0.4,
+                    ),
+                  ),
                   const Text(
                     'CYCLE',
                     style: TextStyle(
@@ -89,7 +114,7 @@ class ResourceDashboard extends ConsumerWidget {
                   Text(
                     '${gameState.currentTurn}',
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: FontWeight.w900,
                       color: Color(0xFF070A12),
                     ),

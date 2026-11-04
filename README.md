@@ -120,6 +120,17 @@ docker compose up --build
 - Backend: `http://localhost:8080`
 - Swagger UI: `http://localhost:8081`
 
+### 5. Production web deploy
+
+This is a **Flutter web** client (not Vite/React). See **[DEPLOY.md](./DEPLOY.md)** for Vercel, Netlify, and GitHub Pages.
+
+```bash
+./scripts/build_web.sh
+# bundle → frontend/build/web
+```
+
+GitHub Pages auto-deploys from `main` via `.github/workflows/deploy-web.yml` once Pages is enabled on the repo.
+
 ---
 
 ## Testing & CI

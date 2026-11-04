@@ -1,11 +1,11 @@
 {
-    "name": "frontend",
-    "short_name": "frontend",
+    "name": "Iso Syndicate",
+    "short_name": "Syndicate",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#070A12",
+    "theme_color": "#00F5D4",
+    "description": "Sci-fi underground syndicate management — isometric districts, Credits, Heat, and rival crews.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

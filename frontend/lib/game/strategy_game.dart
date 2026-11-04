@@ -1,13 +1,16 @@
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
+import 'package:flame_tiled/flame_tiled.dart';
 import 'package:flutter/material.dart';
+
 import '../core/constants/game_constants.dart';
 import '../core/math/iso_math.dart';
+import '../core/syndicate/event_log_entry.dart';
 import '../state/tile_models.dart';
+import 'components/damage_text.dart';
+import 'components/floating_yield_text.dart';
 import 'components/isometric_grid_component.dart';
 import 'components/tile_highlight_component.dart';
-import 'components/damage_text.dart';
-import 'package:flame_tiled/flame_tiled.dart';
 
 /// Pure Flame Game instance managing isometric rendering and camera control.
 /// Strictly decoupled from Flutter widgets.
@@ -20,6 +23,7 @@ class StrategyGame extends FlameGame with TapCallbacks, ScaleDetector {
 
   double _zoomLevel = GameConstants.defaultZoom;
   Vector2 _cameraPosition = Vector2.zero();
+  bool _didPanGesture = false;
 
   StrategyGame({this.onTileSelected});
 
@@ -99,6 +103,21 @@ class StrategyGame extends FlameGame with TapCallbacks, ScaleDetector {
     _gridComponent.add(floatingText);
   }
 
+  /// Spawn colored +Credits / +Heat style floaters from economy ticks.
+  void spawnFloatingYields(List<FloatingYieldEvent> events) {
+    for (var i = 0; i < events.length; i++) {
+      final e = events[i];
+      final screenPos = IsoMath.gridToWorld(e.x, e.y);
+      _gridComponent.add(
+        FloatingYieldText(
+          text: e.label,
+          color: e.color,
+          position: Vector2(screenPos.x, screenPos.y - 36.0 - (i * 18.0)),
+        ),
+      );
+    }
+  }
+
   /// Synchronize selection highlight
   void setSelectedCoord(GridCoord? coord) {
     _highlightComponent.setSelectedCoord(coord);
@@ -113,7 +132,14 @@ class StrategyGame extends FlameGame with TapCallbacks, ScaleDetector {
 
   @override
   void onTapDown(TapDownEvent event) {
-    // Transform screen tap coordinate to isometric world position
+    _didPanGesture = false;
+  }
+
+  @override
+  void onTapUp(TapUpEvent event) {
+    // Ignore selection if the gesture was a camera pan
+    if (_didPanGesture) return;
+
     final worldPos = camera.viewfinder.globalToLocal(event.localPosition);
     final gridCoord = IsoMath.worldToGrid(worldPos);
 
@@ -135,10 +161,12 @@ class StrategyGame extends FlameGame with TapCallbacks, ScaleDetector {
       camera.viewfinder.zoom = _zoomLevel;
     }
 
-    // 2. Handle Inertial Pan / Drag
+    // 2. Handle pan / drag (mark gesture so tap-up does not select)
     final translationDelta = info.delta.global;
     if (translationDelta.x != 0 || translationDelta.y != 0) {
-      // Pan camera inversely to touch delta, scaled by current zoom level
+      if (translationDelta.length > 2.0) {
+        _didPanGesture = true;
+      }
       _cameraPosition -= translationDelta / _zoomLevel;
       camera.viewfinder.position = _cameraPosition;
     }

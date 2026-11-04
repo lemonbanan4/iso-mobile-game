@@ -79,6 +79,13 @@ class ResourceYield {
       science: json['science'] as int? ?? 0,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'food': food,
+        'production': production,
+        'gold': gold,
+        'science': science,
+      };
 }
 
 class TileEntity {
@@ -152,6 +159,7 @@ class TileState {
     ResourceYield? yields,
     TileEntity? entity,
     TileEntity? unit,
+    bool clearEntity = false,
     bool clearUnit = false,
     bool? isExplored,
     bool? isVisible,
@@ -161,7 +169,7 @@ class TileState {
       coord: coord ?? this.coord,
       type: type ?? this.type,
       yields: yields ?? this.yields,
-      entity: entity ?? this.entity,
+      entity: clearEntity ? null : (entity ?? this.entity),
       unit: clearUnit ? null : (unit ?? this.unit),
       isExplored: isExplored ?? this.isExplored,
       isVisible: isVisible ?? this.isVisible,
@@ -191,4 +199,15 @@ class TileState {
       territoryOwner: json['territory_owner'] as String?,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'coord': {'x': coord.x, 'y': coord.y},
+        'type': type.name,
+        'yields': yields.toJson(),
+        'entity': entity?.toJson(),
+        'unit': unit?.toJson(),
+        'is_explored': isExplored,
+        'is_visible': isVisible,
+        'territory_owner': territoryOwner,
+      };
 }

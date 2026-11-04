@@ -1,0 +1,37 @@
+# Iso Syndicate — Netlify static web deploy (Flutter web)
+# Build Flutter in CI/local first, or use Netlify with a Flutter build image.
+#
+# Recommended: build in GitHub Actions / locally, then publish `frontend/build/web`.
+# For Netlify native builds, set env FLUTTER_VERSION and use the command below.
+
+[build]
+  base = "frontend"
+  command = "bash ../scripts/netlify_flutter_build.sh"
+  publish = "build/web"
+
+[build.environment]
+  FLUTTER_VERSION = "3.35.0"
+  NODE_VERSION = "20"
+
+# SPA / Flutter deep-link fallback
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/**"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "/assets/**"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/main.dart.js"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"

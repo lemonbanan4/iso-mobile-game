@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/syndicate/facility_catalog.dart';
 import '../../core/theme/game_theme.dart';
 import '../../state/game_state_provider.dart';
 import '../components/clay_button.dart';
@@ -15,7 +16,7 @@ class TileInspectorPanel extends ConsumerWidget {
     final gameState = ref.watch(gameStateProvider);
     final tile = gameState.selectedTile;
 
-    if (tile == null) {
+    if (tile == null || gameState.showBuildMenu || gameState.isGameOver) {
       return const SizedBox.shrink();
     }
 
@@ -23,8 +24,10 @@ class TileInspectorPanel extends ConsumerWidget {
     final hasBarracks = tile.entity?.type == 'barracks';
     final hasTavern = tile.entity?.type == 'tavern';
     final isEmpty = tile.entity == null && tile.unit == null;
+    final facility = tile.entity != null
+        ? FacilityCatalog.byEntityType(tile.entity!.type)
+        : null;
 
-    // Calculate if the entity is actively under construction
     final int currentUnixTime = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     final bool isConstructing =
         tile.entity != null &&
@@ -43,35 +46,37 @@ class TileInspectorPanel extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header: Tile name + Coordinates + Close button
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          tile.unit?.name ??
-                              tile.entity?.name ??
-                              tile.type.displayName,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: GameTheme.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'District (${tile.coord.x}, ${tile.coord.y}) • ${tile.type.displayName}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: GameTheme.textSecondary.withValues(
-                              alpha: 0.8,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tile.unit?.name ??
+                                facility?.name ??
+                                tile.entity?.name ??
+                                tile.type.displayName,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: GameTheme.textPrimary,
                             ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 2),
+                          Text(
+                            'District (${tile.coord.x}, ${tile.coord.y}) • ${tile.type.displayName}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: GameTheme.textSecondary.withValues(
+                                alpha: 0.8,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(
@@ -87,7 +92,6 @@ class TileInspectorPanel extends ConsumerWidget {
                 ),
                 const SizedBox(height: 14),
 
-                // Live timer if the building is under construction
                 if (tile.entity?.readyAt != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 14.0),
@@ -96,7 +100,19 @@ class TileInspectorPanel extends ConsumerWidget {
                     ),
                   ),
 
-                // District yield pills (syndicate ledger mapping)
+                if (facility != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      'Passive · ${facility.tickLabel}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: GameTheme.accentNeon.withValues(alpha: 0.9),
+                      ),
+                    ),
+                  ),
+
                 Row(
                   children: [
                     _YieldBadge(
@@ -149,125 +165,35 @@ class TileInspectorPanel extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Tactical Actions row (3D Claymorphic action buttons)
-                // Tactical Actions row (3D Claymorphic action buttons)
                 Wrap(
                   spacing: 10,
                   runSpacing: 10,
                   children: [
-                    if (isEmpty) ...[
-                      ClayButton(
-                        onPressed: () => ref
-                            .read(gameStateProvider.notifier)
-                            .executeTileAction(
-                              target: tile.coord,
-                              actionType: 'build_farm',
-                            ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.home_work_rounded,
-                              size: 16,
-                              color: GameTheme.heat,
-                            ),
-                            SizedBox(width: 6),
-                            Text(
-                              'Safehouse (30₡)',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: GameTheme.textPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    if (isEmpty)
                       ClayButton(
                         isAccent: true,
-                        onPressed: () => ref
-                            .read(gameStateProvider.notifier)
-                            .executeTileAction(
-                              target: tile.coord,
-                              actionType: 'build_mine',
-                            ),
+                        onPressed: () =>
+                            ref.read(gameStateProvider.notifier).openBuildMenu(),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              Icons.warehouse_rounded,
+                              Icons.add_business_rounded,
                               size: 16,
-                              color: GameTheme.contraband,
+                              color: Color(0xFF070A12),
                             ),
                             SizedBox(width: 6),
                             Text(
-                              'Smuggling Den (40₡ / 25◆)',
+                              'Open Facility Menu',
                               style: TextStyle(
                                 fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                                color: GameTheme.contraband,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF070A12),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      ClayButton(
-                        isAccent: true,
-                        onPressed: () => ref
-                            .read(gameStateProvider.notifier)
-                            .executeTileAction(
-                              target: tile.coord,
-                              actionType: 'build_barracks',
-                            ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.security_rounded,
-                              size: 16,
-                              color: Colors.blueAccent,
-                            ),
-                            SizedBox(width: 6),
-                            Text(
-                              'Enforcement Cell (60₡ / 40◆)',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.blueAccent,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      ClayButton(
-                        isAccent: true,
-                        onPressed: () => ref
-                            .read(gameStateProvider.notifier)
-                            .executeTileAction(
-                              target: tile.coord,
-                              actionType: 'build_tavern',
-                            ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.nightlife_rounded,
-                              size: 16,
-                              color: Colors.purpleAccent,
-                            ),
-                            SizedBox(width: 6),
-                            Text(
-                              'Black Market (100₡ / 50◆)',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.purpleAccent,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
 
                     if (hasBarracks)
                       ClayButton(
@@ -325,10 +251,10 @@ class TileInspectorPanel extends ConsumerWidget {
                         ),
                       ),
 
-                    if (hasCity) ...[
+                    if (hasCity)
                       const Center(
                         child: Padding(
-                          padding: EdgeInsets.only(bottom: 8.0),
+                          padding: EdgeInsets.only(bottom: 4.0),
                           child: Text(
                             'Capital Cell • Fortified & Harvesting',
                             style: TextStyle(
@@ -339,7 +265,6 @@ class TileInspectorPanel extends ConsumerWidget {
                           ),
                         ),
                       ),
-                    ],
                     if (isConstructing)
                       Padding(
                         padding: const EdgeInsets.only(top: 8.0),

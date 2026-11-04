@@ -7,7 +7,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'core/theme/game_theme.dart';
 import 'game/strategy_game.dart';
 import 'state/game_state_provider.dart';
+import 'ui/hud/encounter_prompt.dart';
+import 'ui/hud/endgame_overlay.dart';
 import 'ui/hud/event_log_ticker.dart';
+import 'ui/hud/facility_build_sheet.dart';
+import 'ui/hud/game_menu_sheet.dart';
 import 'ui/hud/resource_dashboard.dart';
 import 'ui/hud/tile_inspector_panel.dart';
 
@@ -81,6 +85,11 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       }
       if (previous?.selectedCoord != next.selectedCoord) {
         _game.setSelectedCoord(next.selectedCoord);
+      }
+      if (next.pendingFloaters.isNotEmpty &&
+          (previous?.pendingFloaters != next.pendingFloaters)) {
+        _game.spawnFloatingYields(next.pendingFloaters);
+        ref.read(gameStateProvider.notifier).clearPendingFloaters();
       }
     });
     ref.listen<GameState>(gameStateProvider, (previous, next) {
@@ -196,7 +205,16 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             child: TileInspectorPanel(),
           ),
 
-          // 5. SERVER SYNC / TRANSACTION SPINNER OVERLAY
+          // 5. Facility build menu
+          const FacilityBuildSheet(),
+
+          // 5b. Save / Reset ops menu
+          const GameMenuSheet(),
+
+          // 6. Choice-driven syndicate encounter prompt
+          const EncounterPrompt(),
+
+          // 7. SERVER SYNC / TRANSACTION SPINNER OVERLAY
           if (gameState.isSyncingWithServer)
             Positioned(
               top: 140,
@@ -240,93 +258,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                 ),
               ),
             ),
-          // 6. VICTORY OVERLAY
-          if (gameState.isVictory)
-            Positioned.fill(
-              child: Container(
-                color: const Color(0xFF070A12).withValues(alpha: 0.95),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.emoji_events_rounded,
-                        size: 100,
-                        color: Colors.amber,
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'DOMINANCE',
-                        style: TextStyle(
-                          color: Colors.amber,
-                          fontSize: 48,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 8,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Rival crews erased. The syndicate owns the grid.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                      const SizedBox(height: 32),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.amber,
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 32,
-                            vertical: 16,
-                          ),
-                        ),
-                        onPressed: () {},
-                        child: const Text(
-                          'REOPEN THE NET',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
 
-          // 7. DEFEAT OVERLAY
-          if (gameState.isDefeat)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.95),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.warning_amber_rounded,
-                        size: 100,
-                        color: Colors.redAccent,
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'BUSTED',
-                        style: TextStyle(
-                          color: Colors.redAccent,
-                          fontSize: 48,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 8,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Your capital cell fell. The syndicate is dust.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white70, fontSize: 16),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+          // 8. Victory / crisis overlays
+          const EndgameOverlay(),
         ],
       ),
     );
