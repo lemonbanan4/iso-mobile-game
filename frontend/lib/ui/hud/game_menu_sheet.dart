@@ -6,6 +6,7 @@ import '../../core/theme/game_theme.dart';
 import '../../state/game_state_provider.dart';
 import '../components/clay_button.dart';
 import '../components/glass_card.dart';
+import '../screens/tech_tree_screen.dart';
 
 /// Save / Reset / audio toggle menu (mobile-friendly).
 class GameMenuSheet extends ConsumerWidget {
@@ -27,8 +28,12 @@ class GameMenuSheet extends ConsumerWidget {
                 borderRadius: 28,
                 padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  child: Column(
+                  constraints: BoxConstraints(
+                    maxWidth: 400,
+                    maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -99,6 +104,46 @@ class GameMenuSheet extends ConsumerWidget {
                         ),
                       ],
                       const SizedBox(height: 18),
+                      ClayButton(
+                        isAccent: true,
+                        onPressed: () {
+                          ref.read(gameStateProvider.notifier).closeGameMenu();
+                          ref
+                              .read(gameStateProvider.notifier)
+                              .openRecruitment();
+                        },
+                        child: const Text(
+                          'RECRUIT CREW',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.2,
+                            color: Color(0xFF070A12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ClayButton(
+                        onPressed: () {
+                          AudioHooks.instance.uiClick();
+                          ref.read(gameStateProvider.notifier).closeGameMenu();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const TechTreeScreen(),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          'BLACK MARKET TECH',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.0,
+                            color: GameTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                       ClayButton(
                         isAccent: true,
                         onPressed: () =>
@@ -182,6 +227,7 @@ class GameMenuSheet extends ConsumerWidget {
                         ),
                       ),
                     ],
+                  ),
                   ),
                 ),
               ),

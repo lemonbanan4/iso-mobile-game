@@ -105,8 +105,17 @@ class StrategyGame extends FlameGame with TapCallbacks, ScaleDetector {
 
   /// Spawn colored +Credits / +Heat style floaters from economy ticks.
   void spawnFloatingYields(List<FloatingYieldEvent> events) {
-    for (var i = 0; i < events.length; i++) {
-      final e = events[i];
+    // Cap concurrent floaters so repeated ticks don't pile up on web.
+    final existing = _gridComponent.children.whereType<FloatingYieldText>();
+    if (existing.length > 12) {
+      for (final old in existing.take(existing.length - 8).toList()) {
+        old.removeFromParent();
+      }
+    }
+
+    final limited = events.take(4).toList();
+    for (var i = 0; i < limited.length; i++) {
+      final e = limited[i];
       final screenPos = IsoMath.gridToWorld(e.x, e.y);
       _gridComponent.add(
         FloatingYieldText(

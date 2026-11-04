@@ -3,6 +3,10 @@ void playTone({
   required double frequencyHz,
   required int durationMs,
   double gain = 0.05,
-}) {
-  // Intentionally silent — swap for asset SFX when packaged.
-}
+  String wave = 'sine',
+}) {}
+
+void playNoiseBurst({
+  required int durationMs,
+  double gain = 0.04,
+}) {}

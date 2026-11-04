@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/audio/audio_hooks.dart';
 import '../../core/theme/game_theme.dart';
 import '../../state/game_state_provider.dart';
 import '../components/clay_button.dart';
@@ -55,6 +56,11 @@ class ResourceDashboard extends ConsumerWidget {
                     ),
                     GestureDetector(
                       onTap: () {
+                        ref
+                            .read(gameStateProvider.notifier)
+                            .openRecruitment();
+                      },
+                      onLongPress: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (context) => const TechTreeScreen(),
@@ -64,8 +70,10 @@ class ResourceDashboard extends ConsumerWidget {
                       child: _ResourceItem(
                         icon: Icons.groups_rounded,
                         color: GameTheme.loyalty,
-                        value: '${gameState.loyalty}%',
-                        label: 'Loyalty',
+                        value: gameState.hiredLieutenants.isEmpty
+                            ? '${gameState.loyalty}%'
+                            : '${gameState.hiredLieutenants.length}·${gameState.loyalty}%',
+                        label: 'Crew',
                       ),
                     ),
                     _ResourceItem(
@@ -85,9 +93,10 @@ class ResourceDashboard extends ConsumerWidget {
               isAccent: true,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               borderRadius: 22,
-              onPressed: gameState.isGameOver
+              onPressed: (gameState.isGameOver || gameState.isSyncingWithServer)
                   ? null
                   : () {
+                      AudioHooks.instance.uiClick();
                       ref.read(gameStateProvider.notifier).nextTurn();
                     },
               child: Column(

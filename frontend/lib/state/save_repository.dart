@@ -10,7 +10,7 @@ import 'tile_models.dart';
 /// Browser localStorage (via SharedPreferences) persistence for syndicate progress.
 class SaveRepository {
   static const storageKey = 'iso_syndicate_save_v1';
-  static const int schemaVersion = 1;
+  static const int schemaVersion = 2;
 
   Future<bool> hasSave() async {
     final prefs = await SharedPreferences.getInstance();
@@ -33,6 +33,7 @@ class SaveRepository {
       'food': state.food,
       'currentTurn': state.currentTurn,
       'unlockedTechs': state.unlockedTechs,
+      'hiredLieutenants': state.hiredLieutenants,
       'selected': state.selectedCoord == null
           ? null
           : {'x': state.selectedCoord!.x, 'y': state.selectedCoord!.y},
@@ -90,6 +91,9 @@ class SaveRepository {
         food: data['food'] as int? ?? 18,
         currentTurn: data['currentTurn'] as int? ?? 1,
         unlockedTechs: (data['unlockedTechs'] as List? ?? const [])
+            .map((e) => e.toString())
+            .toList(),
+        hiredLieutenants: (data['hiredLieutenants'] as List? ?? const [])
             .map((e) => e.toString())
             .toList(),
         eventLog: events,

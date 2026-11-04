@@ -11,8 +11,10 @@ import '../core/syndicate/encounter_catalog.dart';
 import '../core/syndicate/encounter_models.dart';
 import '../core/syndicate/event_log_entry.dart';
 import '../core/syndicate/facility_catalog.dart';
+import '../core/syndicate/lieutenant_catalog.dart';
 import '../core/syndicate/rival_ai.dart';
 import '../core/theme/game_theme.dart';
+import '../data/lieutenants.dart' as roster;
 import 'save_repository.dart';
 import 'tile_models.dart';
 
@@ -32,11 +34,13 @@ class GameState {
   final bool isSyncingWithServer;
   final String? lastMessage;
   final List<String> unlockedTechs;
+  final List<String> hiredLieutenants;
   final Map<String, dynamic>? gachaPull;
   final List<EventLogEntry> eventLog;
   final SyndicateEncounter? pendingEncounter;
   final bool showBuildMenu;
   final bool showGameMenu;
+  final bool showRecruitment;
   final String? endgameReason;
   final bool economyPaused;
   final List<FloatingYieldEvent> pendingFloaters;
@@ -53,16 +57,21 @@ class GameState {
     this.isSyncingWithServer = false,
     this.lastMessage,
     this.unlockedTechs = const [],
+    this.hiredLieutenants = const [],
     this.gachaPull,
     this.eventLog = const [],
     this.pendingEncounter,
     this.showBuildMenu = false,
     this.showGameMenu = false,
+    this.showRecruitment = false,
     this.endgameReason,
     this.economyPaused = false,
     this.pendingFloaters = const [],
     this.saveStatus,
   });
+
+  PassiveModifiers get passiveMods =>
+      PassiveModifiers.fromIds(hiredLieutenants, unlockedTechs);
 
   // Syndicate HUD aliases (UI terminology ↔ API fields)
   int get credits => gold;
@@ -122,6 +131,7 @@ class GameState {
     bool? isSyncingWithServer,
     String? lastMessage,
     List<String>? unlockedTechs,
+    List<String>? hiredLieutenants,
     Map<String, dynamic>? gachaPull,
     bool clearGacha = false,
     List<EventLogEntry>? eventLog,
@@ -129,6 +139,7 @@ class GameState {
     bool clearPendingEncounter = false,
     bool? showBuildMenu,
     bool? showGameMenu,
+    bool? showRecruitment,
     String? endgameReason,
     bool clearEndgame = false,
     bool? economyPaused,
@@ -150,6 +161,7 @@ class GameState {
       isSyncingWithServer: isSyncingWithServer ?? this.isSyncingWithServer,
       lastMessage: lastMessage ?? this.lastMessage,
       unlockedTechs: unlockedTechs ?? this.unlockedTechs,
+      hiredLieutenants: hiredLieutenants ?? this.hiredLieutenants,
       gachaPull: clearGacha ? null : (gachaPull ?? this.gachaPull),
       eventLog: eventLog ?? this.eventLog,
       pendingEncounter: clearPendingEncounter
@@ -157,6 +169,7 @@ class GameState {
           : (pendingEncounter ?? this.pendingEncounter),
       showBuildMenu: showBuildMenu ?? this.showBuildMenu,
       showGameMenu: showGameMenu ?? this.showGameMenu,
+      showRecruitment: showRecruitment ?? this.showRecruitment,
       endgameReason: clearEndgame ? null : (endgameReason ?? this.endgameReason),
       economyPaused: economyPaused ?? this.economyPaused,
       pendingFloaters:
@@ -256,6 +269,112 @@ class GameNotifier extends Notifier<GameState> {
     state = state.copyWith(showGameMenu: false);
   }
 
+  void openRecruitment() {
+    if (state.isGameOver) return;
+    AudioHooks.instance.uiClick();
+    state = state.copyWith(
+      showRecruitment: true,
+      showGameMenu: false,
+      showBuildMenu: false,
+    );
+  }
+
+  void closeRecruitment() {
+    state = state.copyWith(showRecruitment: false);
+  }
+
+  void hireLieutenant(String lieutenantId) {
+    if (state.isGameOver) return;
+    if (state.hiredLieutenants.contains(lieutenantId)) {
+      pushEvent('Already on payroll.', kind: EventKind.system);
+      return;
+    }
+
+    final catalogLt = LieutenantCatalog.byId(lieutenantId);
+    if (catalogLt != null) {
+      if (state.credits < catalogLt.creditCost) {
+        pushEvent(
+          'Not enough Credits to hire ${catalogLt.role}.',
+          kind: EventKind.system,
+        );
+        return;
+      }
+      state = state.copyWith(
+        gold: state.gold - catalogLt.creditCost,
+        hiredLieutenants: [...state.hiredLieutenants, catalogLt.id],
+        showRecruitment: false,
+        lastMessage: 'Hired ${catalogLt.codename} (${catalogLt.role}).',
+      );
+      AudioHooks.instance.recruitConfirm();
+      pushEvent(
+        'Crew hire — ${catalogLt.codename} online. ${catalogLt.buffLabel}',
+        kind: EventKind.gain,
+      );
+      _scheduleAutosave();
+      return;
+    }
+
+    roster.Lieutenant? rosterLt;
+    for (final lt in roster.initialLieutenants) {
+      if (lt.id == lieutenantId) {
+        rosterLt = lt;
+        break;
+      }
+    }
+    if (rosterLt == null) return;
+    if (state.credits < rosterLt.cost) {
+      pushEvent(
+        'Not enough Credits to hire ${rosterLt.role}.',
+        kind: EventKind.system,
+      );
+      return;
+    }
+
+    rosterLt.hired = true;
+    state = state.copyWith(
+      gold: state.gold - rosterLt.cost,
+      hiredLieutenants: [...state.hiredLieutenants, rosterLt.id],
+      showRecruitment: false,
+      lastMessage: 'Hired ${rosterLt.name} (${rosterLt.role}).',
+    );
+    AudioHooks.instance.recruitConfirm();
+    pushEvent(
+      'Crew hire — ${rosterLt.name} online.',
+      kind: EventKind.gain,
+    );
+    _scheduleAutosave();
+  }
+
+  void unlockBlackMarketTech(String techId) {
+    if (state.isGameOver) return;
+    final tech = BlackMarketTechCatalog.byId(techId);
+    if (tech == null) return;
+    if (state.unlockedTechs.contains(tech.id)) return;
+    final ready = tech.requirements.every(state.unlockedTechs.contains);
+    if (!ready) {
+      pushEvent('Tech gated — unlock prerequisites first.', kind: EventKind.system);
+      return;
+    }
+    if (state.credits < tech.creditCost ||
+        state.contraband < tech.contrabandCost) {
+      pushEvent('Ledger short for ${tech.name}.', kind: EventKind.system);
+      return;
+    }
+
+    state = state.copyWith(
+      gold: state.gold - tech.creditCost,
+      production: state.production - tech.contrabandCost,
+      unlockedTechs: [...state.unlockedTechs, tech.id],
+      lastMessage: 'Unlocked ${tech.name}.',
+    );
+    AudioHooks.instance.techUnlock();
+    pushEvent(
+      'Black market unlock — ${tech.name}.',
+      kind: EventKind.gain,
+    );
+    _scheduleAutosave();
+  }
+
   Future<void> saveGame({bool manual = true}) async {
     await _saves.save(state);
     if (manual) {
@@ -290,6 +409,9 @@ class GameNotifier extends Notifier<GameState> {
       food: 18,
       currentTurn: 1,
       tiles: const {},
+      unlockedTechs: const [],
+      hiredLieutenants: const [],
+      showRecruitment: false,
       eventLog: EncounterCatalog.seedLog()
           .map(
             (m) => EventLogEntry(
@@ -342,7 +464,12 @@ class GameNotifier extends Notifier<GameState> {
 
   /// Passive income from owned facilities every 5 seconds.
   void tickEconomy() {
-    if (state.economyPaused || state.isGameOver || state.tiles.isEmpty) return;
+    if (state.economyPaused ||
+        state.isGameOver ||
+        state.isSyncingWithServer ||
+        state.tiles.isEmpty) {
+      return;
+    }
 
     var creditsGain = 0;
     var contrabandGain = 0;
@@ -369,6 +496,13 @@ class GameNotifier extends Notifier<GameState> {
     creditsGain += capitals.length * 3;
 
     if (facilityCount == 0 && capitals.isEmpty) return;
+
+    // Apply lieutenant + black-market passive buffs
+    final mods = state.passiveMods;
+    creditsGain = (creditsGain * mods.creditsMult).round();
+    contrabandGain = (contrabandGain * mods.contrabandMult).round();
+    heatGain = (heatGain * mods.heatMult).round() + mods.flatHeat;
+    loyaltyGain += mods.flatLoyalty;
 
     final floaters = <FloatingYieldEvent>[];
     // Anchor popups on capital / first facility for feedback
@@ -753,28 +887,30 @@ class GameNotifier extends Notifier<GameState> {
   }
 
   Future<void> nextTurn() async {
+    // Re-entry guard — rapid CYCLE clicks were stacking full-map refetches
+    // and blowing Flutter web WASM memory.
+    if (state.isSyncingWithServer || state.isGameOver || state.economyPaused) {
+      return;
+    }
+
     state = state.copyWith(isSyncingWithServer: true);
+    final turnAtRequest = state.currentTurn;
 
     try {
-      // Pointing to the endpoint defined in turns.py router
       final url = Uri.parse('http://127.0.0.1:8000/v1/turns/end');
 
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          // The Python EndTurnRequest model expects the current turn to verify sync
-          'turn': state.currentTurn,
+          'turn': turnAtRequest,
           'player_id': 'Player 1',
         }),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final newResources = data['resources'];
-
-        // Download the map to show Barbarian movements and damage taken!
-        fetchWorldState();
+        final newResources = data['resources'] as Map<String, dynamic>? ?? {};
 
         final turnMessage =
             data['message'] as String? ?? 'Cycle closed. Yields secured.';
@@ -788,7 +924,7 @@ class GameNotifier extends Notifier<GameState> {
             .clamp(0, 100);
 
         state = state.copyWith(
-          currentTurn: data['current_turn'] ?? state.currentTurn + 1,
+          currentTurn: data['current_turn'] ?? turnAtRequest + 1,
           gold: serverGold,
           science: serverSci,
           production: serverProd,
@@ -799,9 +935,12 @@ class GameNotifier extends Notifier<GameState> {
               ? List<String>.from(data['unlocked_techs'])
               : state.unlockedTechs,
         );
-        pushEvent(turnMessage);
+        pushEvent(turnMessage, kind: EventKind.system);
         pushEvent(EncounterCatalog.randomEncounter());
-        _maybeSurfaceEncounter(chance: 0.6);
+        // Skip full-map fetchWorldState here — it reallocated ~1k tiles every
+        // click and crashed Flutter web. Rival AI already mutates local tiles.
+        _maybeSurfaceEncounter(chance: 0.45);
+        _scheduleAutosave();
         _evaluateEndgame();
       } else {
         final errorData = jsonDecode(response.body);
@@ -817,21 +956,23 @@ class GameNotifier extends Notifier<GameState> {
       final harvestContraband = 8;
       final harvestLoyalty = 4;
       final heatCreep = 3;
+      final next = turnAtRequest + 1;
       state = state.copyWith(
-        currentTurn: state.currentTurn + 1,
+        currentTurn: next,
         gold: state.gold + harvestCredits,
         production: state.production + harvestContraband,
         science: (state.science + harvestLoyalty).clamp(0, 100),
         food: (state.food + heatCreep).clamp(0, 100),
         isSyncingWithServer: false,
-        lastMessage:
-            'Offline cycle ${state.currentTurn + 1}: local yields applied.',
+        lastMessage: 'Offline cycle $next: local yields applied.',
       );
       pushEvent(
         'Offline cycle — +$harvestCredits Credits · +$harvestContraband Contraband · +$heatCreep Heat.',
+        kind: EventKind.gain,
       );
       pushEvent(EncounterCatalog.randomEncounter());
-      _maybeSurfaceEncounter(chance: 0.7);
+      _maybeSurfaceEncounter(chance: 0.45);
+      _scheduleAutosave();
       _evaluateEndgame();
     }
   }

@@ -4,7 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'core/syndicate/event_log_entry.dart';
 import 'core/theme/game_theme.dart';
+import 'data/lieutenants.dart';
 import 'game/strategy_game.dart';
 import 'state/game_state_provider.dart';
 import 'ui/hud/encounter_prompt.dart';
@@ -14,6 +16,7 @@ import 'ui/hud/facility_build_sheet.dart';
 import 'ui/hud/game_menu_sheet.dart';
 import 'ui/hud/resource_dashboard.dart';
 import 'ui/hud/tile_inspector_panel.dart';
+import 'widgets/lieutenants_panel.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -86,10 +89,16 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       if (previous?.selectedCoord != next.selectedCoord) {
         _game.setSelectedCoord(next.selectedCoord);
       }
+      // Defer floater clear — mutating Riverpod inside listen caused nested
+      // rebuilds that corrupted Flutter web's renderer after repeated CYCLEs.
       if (next.pendingFloaters.isNotEmpty &&
           (previous?.pendingFloaters != next.pendingFloaters)) {
-        _game.spawnFloatingYields(next.pendingFloaters);
-        ref.read(gameStateProvider.notifier).clearPendingFloaters();
+        final floaters = List<FloatingYieldEvent>.from(next.pendingFloaters);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _game.spawnFloatingYields(floaters);
+          ref.read(gameStateProvider.notifier).clearPendingFloaters();
+        });
       }
     });
     ref.listen<GameState>(gameStateProvider, (previous, next) {
@@ -210,6 +219,72 @@ class _GameScreenState extends ConsumerState<GameScreen> {
 
           // 5b. Save / Reset ops menu
           const GameMenuSheet(),
+
+          // 5c. Lieutenant recruitment bay (lib/data + lib/widgets)
+          if (gameState.showRecruitment)
+            Positioned.fill(
+              child: Material(
+                color: const Color(0xCC070A12),
+                child: SafeArea(
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight:
+                              MediaQuery.sizeOf(context).height * 0.78,
+                          maxWidth: 480,
+                        ),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: IconButton(
+                                  onPressed: () => ref
+                                      .read(gameStateProvider.notifier)
+                                      .closeRecruitment(),
+                                  icon: const Icon(
+                                    Icons.close_rounded,
+                                    color: GameTheme.textSecondary,
+                                  ),
+                                ),
+                              ),
+                              LieutenantsPanel(
+                                lieutenants: initialLieutenants
+                                    .map(
+                                      (lt) => Lieutenant(
+                                        id: lt.id,
+                                        name: lt.name,
+                                        role: lt.role,
+                                        cost: lt.cost,
+                                        upkeepAmount: lt.upkeepAmount,
+                                        description: lt.description,
+                                        buffs: lt.buffs,
+                                        hired: gameState.hiredLieutenants
+                                            .contains(lt.id),
+                                      ),
+                                    )
+                                    .toList(),
+                                playerCredits: gameState.credits,
+                                onHire: (lt) {
+                                  ref
+                                      .read(gameStateProvider.notifier)
+                                      .hireLieutenant(lt.id);
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
 
           // 6. Choice-driven syndicate encounter prompt
           const EncounterPrompt(),
