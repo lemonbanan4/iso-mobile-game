@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.2" orientation="isometric" renderorder="right-down" width="40" height="40" tilewidth="128" tileheight="64" infinite="0" nextlayerid="5" nextobjectid="1">
+ <tileset firstgid="1" source="NatureTile.tsx"/>
+ <tileset firstgid="4273" source="RoadTile.tsx"/>
+ <tileset firstgid="4368" source="CityTile.tsx"/>
+ <layer id="4" name="Buildings" width="40" height="40">
+  <data encoding="base64" compression="zlib">
+   eJzt1DEKgDAMBdBC94J7cesi3v983kCoKDbte3OGn0B+SsBq2vZ3AoC1nB29u9/MHvobhlX95+dmuXGeZA+AJ97uwBK8U6Pnhwguc3IBng==
+  </data>
+ </layer>
+ <layer id="3" name="Ground" width="40" height="40">
+  <data encoding="base64" compression="zlib">
+   eJztwwEJAAAMA6BFeP8Sq7geR8FeUlVVVVVV1UcHU4qp/Q==
+  </data>
+ </layer>
+</map>

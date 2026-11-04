@@ -1,0 +1,133 @@
+name: CI/CD Pipeline - Iso Syndicate
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ==============================================================
+  # Job 1: OpenAPI Contract Verification & Drift Detection
+  # ==============================================================
+  contract-verification:
+    name: Validate OpenAPI Contract
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Verify Contract Conformity
+        run: |
+          python contracts/verify_contracts.py
+
+  # ==============================================================
+  # Job 2: Backend Unit, Integration & Validation Tests
+  # ==============================================================
+  backend-ci:
+    name: Backend Test Suite & Linting
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Pytest Suite
+        run: |
+          pytest -v --junitxml=pytest-report.xml
+
+  # ==============================================================
+  # Job 3: Flutter Frontend Analysis, Tests & Web Build
+  # ==============================================================
+  frontend-ci:
+    name: Flutter Analysis, Tests & Web Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java for Android/Flutter Tooling
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+
+      - name: Install Flutter Dependencies
+        run: flutter pub get
+
+      - name: Static Analysis
+        run: flutter analyze --fatal-infos
+
+      - name: Run Unit & Widget Tests
+        run: flutter test
+
+      - name: Build Web Production Bundle
+        run: flutter build web --release --no-tree-shake-icons
+
+      - name: Upload Web Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-web-bundle
+          path: frontend/build/web
+          retention-days: 7
+
+  # ==============================================================
+  # Job 4: Backend Container Build Validation for Cloud Run
+  # ==============================================================
+  docker-validation:
+    name: Validate Cloud Run Dockerfile Build
+    needs: [contract-verification, backend-ci]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Backend Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: backend
+          file: backend/Dockerfile
+          push: false
+          tags: iso-strategy-backend:ci-test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

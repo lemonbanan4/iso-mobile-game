@@ -1,0 +1,574 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "IsoStrategy 4X Backend Engine",
+    "description": "Authoritative game state, tactical action validation, and turn progression API for mobile 4X strategy game.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Health Check",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/world/tiles": {
+      "get": {
+        "tags": [
+          "World Map"
+        ],
+        "summary": "Fetch World Map Sectors",
+        "description": "Returns the full isometric strategy world grid and current terrain state.",
+        "operationId": "get_world_map_v1_world_tiles_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorldMapResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/world/tiles/{x}/{y}": {
+      "get": {
+        "tags": [
+          "World Map"
+        ],
+        "summary": "Get Specific Tile State",
+        "description": "Retrieves authoritative state for a specific discrete grid coordinate.",
+        "operationId": "get_tile_by_coord_v1_world_tiles__x___y__get",
+        "parameters": [
+          {
+            "name": "x",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "X"
+            }
+          },
+          {
+            "name": "y",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Y"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TileState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/actions": {
+      "post": {
+        "tags": [
+          "Tactical Actions"
+        ],
+        "summary": "Submit Player Action",
+        "description": "Validates and applies tactical actions (e.g. Build Farm, Found Outpost) on the server.",
+        "operationId": "submit_action_v1_actions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TileState"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Action violates game rules or insufficient resources"
+          },
+          "404": {
+            "description": "Target tile coordinates out of bounds"
+          },
+          "409": {
+            "description": "Action conflicts with current tile state"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/turns/end": {
+      "post": {
+        "tags": [
+          "Turn Management"
+        ],
+        "summary": "End Player Turn",
+        "description": "Advances game turn, harvests territory resource yields, and returns updated ledger.",
+        "operationId": "end_turn_v1_turns_end_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndTurnRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EndTurnResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ActionRequest": {
+        "properties": {
+          "action_type": {
+            "$ref": "#/components/schemas/ActionType",
+            "description": "Tactical action code"
+          },
+          "target_x": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Target X",
+            "description": "Target tile grid column"
+          },
+          "target_y": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Target Y",
+            "description": "Target tile grid row"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parameters",
+            "description": "Action-specific parameters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action_type",
+          "target_x",
+          "target_y"
+        ],
+        "title": "ActionRequest"
+      },
+      "ActionType": {
+        "type": "string",
+        "enum": [
+          "build_farm",
+          "found_outpost",
+          "build_mine",
+          "train_scout",
+          "clear_feature"
+        ],
+        "title": "ActionType"
+      },
+      "EndTurnRequest": {
+        "properties": {
+          "turn": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Turn",
+            "description": "Client's expected current turn number"
+          }
+        },
+        "type": "object",
+        "required": [
+          "turn"
+        ],
+        "title": "EndTurnRequest"
+      },
+      "EndTurnResponse": {
+        "properties": {
+          "current_turn": {
+            "type": "integer",
+            "title": "Current Turn",
+            "description": "New authoritative server turn counter"
+          },
+          "resources": {
+            "$ref": "#/components/schemas/PlayerResources",
+            "description": "Total player resources after turn harvest"
+          },
+          "harvested_yields": {
+            "$ref": "#/components/schemas/ResourceYield",
+            "description": "Incremental resources collected this turn"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Turn report message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current_turn",
+          "resources",
+          "harvested_yields",
+          "message"
+        ],
+        "title": "EndTurnResponse"
+      },
+      "GridCoord": {
+        "properties": {
+          "x": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "X",
+            "description": "Horizontal discrete column coordinate"
+          },
+          "y": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Y",
+            "description": "Vertical discrete row coordinate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "x",
+          "y"
+        ],
+        "title": "GridCoord"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "PlayerResources": {
+        "properties": {
+          "gold": {
+            "type": "integer",
+            "title": "Gold",
+            "description": "Current treasury gold balance",
+            "default": 150
+          },
+          "science": {
+            "type": "integer",
+            "title": "Science",
+            "description": "Accumulated science research",
+            "default": 45
+          },
+          "production": {
+            "type": "integer",
+            "title": "Production",
+            "description": "Stored production materials",
+            "default": 80
+          },
+          "food": {
+            "type": "integer",
+            "title": "Food",
+            "description": "Grain/food supplies",
+            "default": 120
+          }
+        },
+        "type": "object",
+        "title": "PlayerResources"
+      },
+      "ResourceYield": {
+        "properties": {
+          "food": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Food",
+            "description": "Food yield for population growth",
+            "default": 0
+          },
+          "production": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Production",
+            "description": "Production hammers for building structures",
+            "default": 0
+          },
+          "gold": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Gold",
+            "description": "Treasury income per turn",
+            "default": 0
+          },
+          "science": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Science",
+            "description": "Research points for technological advancements",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "ResourceYield"
+      },
+      "TileEntity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Unique entity GUID"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Display title (e.g. Hydroponic Farm, New Alexandria)"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "Entity classification: 'city', 'scout', 'farm', 'mine'"
+          },
+          "owner_faction": {
+            "type": "string",
+            "title": "Owner Faction",
+            "description": "Controlling faction ID",
+            "default": "Player 1"
+          },
+          "health": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Health",
+            "description": "Current structural health",
+            "default": 100
+          },
+          "max_health": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Max Health",
+            "description": "Maximum health capacity",
+            "default": 100
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "type"
+        ],
+        "title": "TileEntity"
+      },
+      "TileState": {
+        "properties": {
+          "coord": {
+            "$ref": "#/components/schemas/GridCoord",
+            "description": "Isometric tile grid coordinate"
+          },
+          "type": {
+            "$ref": "#/components/schemas/TileType",
+            "description": "Terrain biome"
+          },
+          "yields": {
+            "$ref": "#/components/schemas/ResourceYield",
+            "description": "Base resource yield harvested per turn"
+          },
+          "entity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TileEntity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Occupying structure or unit"
+          },
+          "is_explored": {
+            "type": "boolean",
+            "title": "Is Explored",
+            "description": "Fog of war explored flag",
+            "default": true
+          },
+          "is_visible": {
+            "type": "boolean",
+            "title": "Is Visible",
+            "description": "Line-of-sight visibility",
+            "default": true
+          },
+          "territory_owner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Territory Owner",
+            "description": "Controlling faction for territory borders"
+          }
+        },
+        "type": "object",
+        "required": [
+          "coord",
+          "type",
+          "yields"
+        ],
+        "title": "TileState"
+      },
+      "TileType": {
+        "type": "string",
+        "enum": [
+          "plains",
+          "forest",
+          "mountain",
+          "water",
+          "hills",
+          "desert"
+        ],
+        "title": "TileType"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WorldMapResponse": {
+        "properties": {
+          "width": {
+            "type": "integer",
+            "title": "Width",
+            "description": "Total map width in tiles"
+          },
+          "height": {
+            "type": "integer",
+            "title": "Height",
+            "description": "Total map height in tiles"
+          },
+          "tiles": {
+            "items": {
+              "$ref": "#/components/schemas/TileState"
+            },
+            "type": "array",
+            "title": "Tiles",
+            "description": "List of all serialized tile sectors"
+          }
+        },
+        "type": "object",
+        "required": [
+          "width",
+          "height",
+          "tiles"
+        ],
+        "title": "WorldMapResponse"
+      }
+    }
+  }
+}
