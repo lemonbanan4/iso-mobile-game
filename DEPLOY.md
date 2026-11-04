@@ -80,15 +80,24 @@ SPA fallback rewrites are already in `vercel.json`.
 
 ## 5. Backend (optional for live play)
 
-Static hosting alone runs the offline economy / AI / localStorage loop. For authoritative world sync:
+**You do not need uvicorn running for the GitHub Pages site to load.**  
+Pages serves the Flutter static bundle. Economy ticks, rival AI, facilities, and
+`localStorage` save/load all work offline in the browser.
+
+Start uvicorn only when you want **server-authoritative** world sync (tiles API,
+combat, end-turn harvest against FastAPI):
 
 ```bash
 cd backend
 source .venv/bin/activate
+# Default in-memory store (no Firebase required):
+export ISO_GAME_STORAGE=memory
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Point the Flutter client API host at your production API (Cloud Run / Docker) when leaving localhost.
+Firestore client still points at `http://127.0.0.1:8000` in local/dev builds. A
+production mobile URL on Pages will not reach your laptop's uvicorn unless you
+also deploy an API and point the client at it.
 
 Docker Compose still serves API on `:8080` for container deploys.
 

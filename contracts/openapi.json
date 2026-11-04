@@ -1,8 +1,8 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "IsoStrategy 4X Backend Engine",
-    "description": "Authoritative game state, tactical action validation, and turn progression API for mobile 4X strategy game.",
+    "title": "Iso Syndicate Backend Engine",
+    "description": "Authoritative game state, district action validation, and cycle progression API for the mobile sci-fi syndicate strategy game.",
     "version": "1.0.0"
   },
   "paths": {
@@ -150,6 +150,164 @@
         }
       }
     },
+    "/v1/actions/move": {
+      "post": {
+        "tags": [
+          "Tactical Actions"
+        ],
+        "summary": "Move Unit",
+        "description": "Validates tactical movement rules and updates entity positions.",
+        "operationId": "move_unit_v1_actions_move_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/actions/research": {
+      "post": {
+        "tags": [
+          "Tactical Actions"
+        ],
+        "summary": "Research Technology",
+        "description": "Spends science to permanently unlock a new technology.",
+        "operationId": "research_tech_v1_actions_research_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/actions/combat": {
+      "post": {
+        "tags": [
+          "Tactical Actions"
+        ],
+        "summary": "Resolve Combat",
+        "operationId": "resolve_combat_v1_actions_combat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CombatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/actions/speedup": {
+      "post": {
+        "tags": [
+          "Tactical Actions"
+        ],
+        "summary": "Apply Speedup",
+        "operationId": "apply_speedup_v1_actions_speedup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeedUpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/turns/end": {
       "post": {
         "tags": [
@@ -235,9 +393,46 @@
           "found_outpost",
           "build_mine",
           "train_scout",
-          "clear_feature"
+          "clear_feature",
+          "build_barracks",
+          "train_warrior",
+          "build_tavern",
+          "summon_commander"
         ],
         "title": "ActionType"
+      },
+      "CombatRequest": {
+        "properties": {
+          "source_x": {
+            "type": "integer",
+            "title": "Source X"
+          },
+          "source_y": {
+            "type": "integer",
+            "title": "Source Y"
+          },
+          "target_x": {
+            "type": "integer",
+            "title": "Target X"
+          },
+          "target_y": {
+            "type": "integer",
+            "title": "Target Y"
+          },
+          "player_id": {
+            "type": "string",
+            "title": "Player Id",
+            "default": "Player 1"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_x",
+          "source_y",
+          "target_x",
+          "target_y"
+        ],
+        "title": "CombatRequest"
       },
       "EndTurnRequest": {
         "properties": {
@@ -319,6 +514,39 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "MoveRequest": {
+        "properties": {
+          "from_x": {
+            "type": "integer",
+            "title": "From X"
+          },
+          "from_y": {
+            "type": "integer",
+            "title": "From Y"
+          },
+          "to_x": {
+            "type": "integer",
+            "title": "To X"
+          },
+          "to_y": {
+            "type": "integer",
+            "title": "To Y"
+          },
+          "player_id": {
+            "type": "string",
+            "title": "Player Id",
+            "default": "Player 1"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from_x",
+          "from_y",
+          "to_x",
+          "to_y"
+        ],
+        "title": "MoveRequest"
+      },
       "PlayerResources": {
         "properties": {
           "gold": {
@@ -348,6 +576,24 @@
         },
         "type": "object",
         "title": "PlayerResources"
+      },
+      "ResearchRequest": {
+        "properties": {
+          "tech_id": {
+            "type": "string",
+            "title": "Tech Id"
+          },
+          "player_id": {
+            "type": "string",
+            "title": "Player Id",
+            "default": "Player 1"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tech_id"
+        ],
+        "title": "ResearchRequest"
       },
       "ResourceYield": {
         "properties": {
@@ -383,6 +629,34 @@
         "type": "object",
         "title": "ResourceYield"
       },
+      "SpeedUpRequest": {
+        "properties": {
+          "target_x": {
+            "type": "integer",
+            "title": "Target X"
+          },
+          "target_y": {
+            "type": "integer",
+            "title": "Target Y"
+          },
+          "item_id": {
+            "type": "string",
+            "title": "Item Id",
+            "default": "speedup_1m"
+          },
+          "player_id": {
+            "type": "string",
+            "title": "Player Id",
+            "default": "Player 1"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_x",
+          "target_y"
+        ],
+        "title": "SpeedUpRequest"
+      },
       "TileEntity": {
         "properties": {
           "id": {
@@ -408,7 +682,6 @@
           },
           "health": {
             "type": "integer",
-            "maximum": 100.0,
             "minimum": 0.0,
             "title": "Health",
             "description": "Current structural health",
@@ -420,6 +693,17 @@
             "title": "Max Health",
             "description": "Maximum health capacity",
             "default": 100
+          },
+          "ready_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ready At"
           }
         },
         "type": "object",
@@ -454,6 +738,17 @@
               }
             ],
             "description": "Occupying structure or unit"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TileEntity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Occupying mobile unit"
           },
           "is_explored": {
             "type": "boolean",
