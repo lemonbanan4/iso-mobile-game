@@ -76,11 +76,11 @@ async def end_turn(
             if not target_tile:
                 continue
 
-            # Safely check if EITHER a unit or a buildings to the player
+            # Target Player 1 units or buildings, not fellow barbarians
             target_defender = None
-            if target_tile.unit and target_tile.unit.owner_faction == "Barbarians":
+            if target_tile.unit and target_tile.unit.owner_faction == "Player 1":
                 target_defender = target_tile.unit
-            elif target_tile.entity and target_tile.entity.owner_faction == "Barbarians":
+            elif target_tile.entity and target_tile.entity.owner_faction == "Player 1":
                 target_defender = target_tile.entity
 
             if target_defender:
@@ -98,9 +98,9 @@ async def end_turn(
                     else:
                         target_tile.entity = None
 
-            await repo.update_tile(target_tile)
-            target_found = True
-            break
+                await repo.update_tile(target_tile)
+                target_found = True
+                break
 
         # 2. Roam randomly if no targets are nearby
         if not target_found:

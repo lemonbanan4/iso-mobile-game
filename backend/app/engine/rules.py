@@ -113,6 +113,12 @@ class GameRulesEngine:
                 f"Tile ({tile.coord.x}, {tile.coord.y}) already contains structure: {tile.entity.name}."
             )
 
+        # Units cannot stack on the same tile
+        if action_type in UNIT_ACTIONS and tile.unit is not None:
+            raise TileConflictError(
+                f"Tile ({tile.coord.x}, {tile.coord.y}) is occupied by unit: {tile.unit.name}."
+            )
+
         # Feature clearing validation
         if action_type == ActionType.CLEAR_FEATURE and tile.type != TileType.FOREST:
             raise GameRuleViolation("Feature clearing can only be performed on forest tiles.")

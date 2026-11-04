@@ -3,7 +3,7 @@ import random
 import time
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.models.action import ActionRequest, MoveRequest, ResearchRequest
-from app.models.tile import TileState, TileEntity
+from app.models.tile import TileState
 from app.models.common import PlayerResources, PlayerState
 from app.engine.rules import GameRulesEngine
 from app.core.exceptions import (
@@ -106,8 +106,6 @@ async def submit_action(
 
     return updated_tile
 
-# ... (keep your existing submit_action route) ...
-
 @router.post(
     "/move",
     status_code=status.HTTP_200_OK,
@@ -118,28 +116,6 @@ async def move_unit(
     request: MoveRequest,
     repo: IGameStateRepository = Depends(get_game_repo),
 ):
-
-    # 1. Execute the move in the database
-    await repo.move_entity((request.from_x, request.from_y), (request.to_x, request.to_y))
-
-    # 2. --- FOG OF WAR REVEAL ---
-    vision_radius = 2 # How far the unit can see
-
-    for dy in range(-vision_radius, vision_radius + 1):
-        for dx in range(-vision_radius, vision_radius + 1):
-            # Creates a diamond shaped vision radius
-            if abs(dx) + abs(dy) <= vision_radius:
-                target_x = request.to_x + dx
-                target_y = request.to_y + dy
-
-                tile = await repo.get_tile(target_x, target_y)
-                if tile and not tile.is_explored:
-                    tile.is_explored = True
-                    tile.is_visible = True
-                    await repo.update_tile(tile) # Save the illuminated tile
-
-    #return {"message": "Unit moved and explored the area."}
-
     source = await repo.get_tile(request.from_x, request.from_y)
     target = await repo.get_tile(request.to_x, request.to_y)
 
@@ -166,8 +142,24 @@ async def move_unit(
     if target.type in ["water", "mountain"]:
         raise HTTPException(status_code=400, detail=f"Units cannot move onto {target.type} terrain.")
 
-    # 6. Apply Movement
+    # 6. Apply Movement (only after validation passes)
     await repo.move_entity((request.from_x, request.from_y), (request.to_x, request.to_y))
+
+    # 7. Fog of war reveal around destination
+    vision_radius = 2
+    for dy in range(-vision_radius, vision_radius + 1):
+        for dx in range(-vision_radius, vision_radius + 1):
+            if abs(dx) + abs(dy) <= vision_radius:
+                reveal_x = request.to_x + dx
+                reveal_y = request.to_y + dy
+                tile = await repo.get_tile(reveal_x, reveal_y)
+                if tile and not tile.is_explored:
+                    tile.is_explored = True
+                    tile.is_visible = True
+                    await repo.update_tile(tile)
+
+    source = await repo.get_tile(request.from_x, request.from_y)
+    target = await repo.get_tile(request.to_x, request.to_y)
 
     return {
         "status": "success",
@@ -328,88 +320,4 @@ async def apply_speedup(request: SpeedUpRequest):
         "message": "Speed-up applied! -1 Minute.",
         "tile": tile.dict()
     }
-
-class TileActionRequest(BaseModel):
-    target_x: int
-    target_y: int
-    action_type: str
-    player_id: str = "Player 1"
-
-@router.post("")
-async def execute_action(request: TileActionRequest):
-    print(f"🛠️ SERVER RECEIVED ACTION: {request.action_type} at {request.target_x},{request.target_y}")
-    
-    repo = get_game_repo()
-    tile = await repo.get_tile(request.target_x, request.target_y)
-    player = await repo.get_player_state()
-
-    if not tile:
-        raise HTTPException(status_code=404, detail="Tile not found.")
-
-    # --- ADD THIS TO PREVENT STACKING ---
-    if request.action_type in ["train_warrior", "summon_commander"]:
-        if tile.unit is not None:
-            raise HTTPException(status_code=409, detail="Tile is occupied! Move your current unit first.")
-            
-    if request.action_type in ["build_farm", "build_mine", "build_barracks", "build_tavern"]:
-        if tile.entity is not None:
-            raise HTTPException(status_code=409, detail="There is already a building here.")
-
-    if request.action_type == "summon_commander":
-        # 1. Check Gold
-        if player.resources.gold < 100:
-            raise HTTPException(status_code=400, detail="Not enough Gold! Need 100.")
-
-        # 2. Check if tile is empty of armies
-        if tile.unit is not None:
-            raise HTTPException(status_code=409, detail="Tile already has a unit on it.")
-
-        # 3. Deduct Gold
-        player.resources.gold -= 100
-        await repo.update_player_state(player)
-
-        # 4. Gacha RNG Roll (1-100)
-        roll = random.randint(1, 100)
-
-        if roll <= 60: # 60% Common
-            hero_name = "Squire of the Realm"
-            rarity = "Common"
-            hp = 120
-        elif roll <= 90: # 30% Rare
-            hero_name = "Veteran Ranger"
-            rarity = "Rare"
-            hp = 160
-        elif roll <= 99: # 9% Epic
-            hero_name = "Knight Commander"
-            rarity = "Epic"
-            hp = 250
-        else: # 1% Legendary
-            hero_name = "Paladin of the Dawn"
-            rarity = "Legendary"
-            hp = 400
-
-        # 5. Create the Hero Unit
-        tile.unit = TileEntity(**{
-            "id": f"hero_{request.target_x}_{request.target_y}_{roll}",
-            "name": hero_name,
-            "type": "hero",
-            "owner_faction": request.player_id,
-            "health": hp,
-            "max_health": hp,
-        })
-
-        await repo.update_tile(tile)
-
-        return {
-            "message": f"Summoned {rarity} {hero_name}!",
-            "tile": tile.dict(),
-            "gacha_result": {
-                "name": hero_name,
-                "health": hp,
-                "rarity": rarity
-            }
-        }
-
-    raise HTTPException(status_code=400, detail="ACtion not implemented yet.")
-    
 
