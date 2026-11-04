@@ -6,7 +6,8 @@ import '../../core/theme/game_theme.dart';
 import '../../state/tile_models.dart';
 import '../strategy_game.dart'; // Import your main game class
 
-class IsometricGridComponent extends Component with HasGameRef<StrategyGame> {
+class IsometricGridComponent extends Component
+    with HasGameReference<StrategyGame> {
   Map<GridCoord, TileState> _tiles = {};
 
   final Paint _gridLinePaint = Paint()
@@ -32,14 +33,14 @@ class IsometricGridComponent extends Component with HasGameRef<StrategyGame> {
     // Load the Kenney building sprites from assets/images/
     // Ensure these filenames match the actual files you copied from the Kenney pack
     try {
-      _citySprite = await gameRef.loadSprite('building-a.png');
-      _farmSprite = await gameRef.loadSprite('building-e.png');
-      _scoutSprite = await gameRef.loadSprite('character-c.png');
-      _mineSprite = await gameRef.loadSprite('building-b.png');
-      _barracksSprite = await gameRef.loadSprite('building-f.png');
-      _warriorSprite = await gameRef.loadSprite('character-a.png');
-      _tavernSprite = await gameRef.loadSprite('building-g.png');
-      _heroSprite = await gameRef.loadSprite('character-b.png');
+      _citySprite = await game.loadSprite('building-a.png');
+      _farmSprite = await game.loadSprite('building-e.png');
+      _scoutSprite = await game.loadSprite('character-c.png');
+      _mineSprite = await game.loadSprite('building-b.png');
+      _barracksSprite = await game.loadSprite('building-f.png');
+      _warriorSprite = await game.loadSprite('character-a.png');
+      _tavernSprite = await game.loadSprite('building-g.png');
+      _heroSprite = await game.loadSprite('character-b.png');
     } catch (e) {
       debugPrint(
         'Warning: Could not load some sprites. Missing PNGs in assets/images/.',
@@ -169,7 +170,7 @@ class IsometricGridComponent extends Component with HasGameRef<StrategyGame> {
     }
 
     // --- DRAW FLOATING HEALTH BAR ---
-    if (entity.maxHealth != null) {
+    if (entity.maxHealth > 0) {
       final double hpPercent = (entity.health / entity.maxHealth).clamp(
         0.0,
         1.0,

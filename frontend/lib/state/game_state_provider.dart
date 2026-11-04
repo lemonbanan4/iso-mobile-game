@@ -730,7 +730,7 @@ class GameNotifier extends Notifier<GameState> {
       } else {
         // Server rejected the move (e.g., TileConflictError, GameRuleViolation)
         final errorData = jsonDecode(response.body);
-        print('SERVER REJECTED ACTION: ${errorData["detail"]}');
+        debugPrint('SERVER REJECTED ACTION: ${errorData["detail"]}');
         state = previousState.copyWith(
           isSyncingWithServer: false,
           lastMessage:
